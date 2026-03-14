@@ -69,6 +69,8 @@
 - Java or JAR-backed dynamic text is high risk.
 - Inspect Java source before proposing edits to hardcoded text.
 - If the mod ships both source files and `jars/*.jar`, treat the jar as the real runtime artifact unless proven otherwise.
+- If the mod ships only compiled classes, decompile only the target classes to a temp workspace. Prefer CFR in command-line mode to avoid GUI-only workflows.
+- Example decompile pattern: `java -jar <cfr.jar> <mod-jar> --outputdir <temp-dir> --silent true`
 - If Java source uses syntax like `->`, `var`, `yield`, or newer `switch` forms, do not rely on Janino recompilation after stripping JAR contents.
 - In those cases, localize safe static text first, then use normal `javac` plus jar replacement for hardcoded tooltip text.
 - Back up any file under `jars/` before modification by creating a `.original` copy.
@@ -94,11 +96,13 @@ Use this exact sequence when a Starsector mod requires source edits plus jar rep
    - Include core Starsector jars from `starsector-core/`.
    - Include dependency mod jars such as `LazyLib`, `GraphicsLib`, or other libs referenced by the target source.
    - Include the target mod jar itself so unchanged dependencies resolve from compiled classes.
+   - When compiling decompiled sources, keep the decompiler output directory as the source root and compile only the touched files.
 
 5. Compile only the changed classes when possible.
    - Prefer `javac --release 17` for Starsector 0.98a unless local evidence shows a different runtime target.
    - Do not compile with the host default target if it produces a newer class version than the game supports.
    - Use `-encoding UTF-8 -implicit:none -sourcepath ''` to avoid accidental recompilation of unrelated source trees.
+   - If decompiled code fails with obvious type issues from reflective helpers, add the smallest necessary casts such as `(String)` or `(Class[])` rather than rewriting logic.
 
 5a. Before compiling, sweep for untranslated UI strings.
    - Search edited files for user-facing English in:
@@ -123,6 +127,7 @@ Use this exact sequence when a Starsector mod requires source edits plus jar rep
 
 7. Update the jar in place.
    - Replace only the changed `.class` entries, including nested classes such as `$LocalData.class` when they were regenerated.
+   - If recompilation produced synthetic or anonymous classes like `$1.class`, update those jar entries too.
 
 8. Clean temporary build output.
    - Remove temporary build folders after the jar update succeeds.

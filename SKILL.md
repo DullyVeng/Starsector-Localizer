@@ -36,6 +36,9 @@ Load [references/localization-workflow.md](references/localization-workflow.md) 
 Treat `.java` and `.jar` text as dangerous by default.
 
 - Read Java source before choosing a workflow.
+- If the mod ships only a compiled jar and no usable source, decompile only the target classes first instead of unpacking or rewriting the whole mod.
+- Prefer a pure command-line decompiler path. Avoid GUI-first tools that block automation unless no other option is available.
+- A reliable fallback is CFR via `java -jar <cfr.jar> <mod-jar> --outputdir <dir> --silent true`.
 - If the mod already ships compiled classes in `jars/*.jar`, assume edited `.java` files will not take effect until the relevant `.class` files are rebuilt and written back into the jar.
 - If the source contains modern Java syntax such as `->`, `var`, `yield`, or newer `switch` forms, do not use a Janino recompilation path.
 - In that case, prefer normal `javac` compilation to the runtime version actually used by the game, then update the existing jar in place.
@@ -47,14 +50,19 @@ Treat `.java` and `.jar` text as dangerous by default.
 When tooltip text or hullmod text is hardcoded:
 
 1. Confirm whether the target class exists in both source and `jars/*.jar`.
-2. Translate the source strings first.
-3. Scan the target Java files for every user-facing string before compiling, not just the first obvious tooltip block.
-4. Specifically inspect `addPrimaryDescription`, `addPostDescriptionSection`, `addEmptySysModText`, `addEmptyMiscModText`, `add*SysModText`, `add*MiscModText`, `getFlavorText`, `getUnapplicableReason`, and any `addSectionHeading`, `addTitle`, or `addPara` calls.
-5. Compile only the changed classes unless a wider rebuild is clearly required.
-6. Match the compile target to the runtime supported by the game, not to the host machine's newest JDK.
-7. Verify class major version before updating the jar.
-8. Replace only the changed class entries inside the jar.
-9. Keep the `.original` backup until the user has tested the mod in game.
+2. If source is missing, decompile only the needed classes to a writable temp directory and treat that output as temporary source.
+3. Translate the source strings first.
+4. Scan the target Java files for every user-facing string before compiling, not just the first obvious tooltip block.
+5. Specifically inspect `addPrimaryDescription`, `addPostDescriptionSection`, `addEmptySysModText`, `addEmptyMiscModText`, `add*SysModText`, `add*MiscModText`, `getFlavorText`, `getUnapplicableReason`, and any `addSectionHeading`, `addTitle`, or `addPara` calls.
+6. If the source came from a decompiler, expect minor compile fixes before translation can build:
+   - cast reflective `MethodHandle.invoke(...)` results back to `String`, `Class[]`, or the expected type
+   - keep synthetic inner classes such as `$1.class` and helper inner classes when recompiling
+   - prefer editing the smallest affected class set instead of trying to rebuild the entire decompiled mod
+7. Compile only the changed classes unless a wider rebuild is clearly required.
+8. Match the compile target to the runtime supported by the game, not to the host machine's newest JDK.
+9. Verify class major version before updating the jar.
+10. Replace only the changed class entries inside the jar.
+11. Keep the `.original` backup until the user has tested the mod in game.
 
 ## Tooltip Sweep Rules
 
